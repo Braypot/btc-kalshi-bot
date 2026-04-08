@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC/BOT × Kalshi</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@700;900&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#060810;--s1:#0c1020;--b1:#1e2840;--b2:#2a3555;--tx:#e2e8f7;--mu:#5a6a8a;--ac:#f7931a;--up:#00e676;--dn:#ff1744;--ne:#7c8db5}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:'Barlow',sans-serif;min-height:100vh}
+input,select,button{font-family:'Barlow',sans-serif}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--b1)}
+.logo{font-weight:900;font-size:22px;letter-spacing:2px;color:var(--ac);text-transform:uppercase}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;font-family:'Share Tech Mono',monospace}
+.dot{width:7px;height:7px;border-radius:50%;animation:blink 1s infinite}
+.wrap{max-width:660px;margin:0 auto;padding:14px 16px 32px}
+.price-board{background:var(--bg);border:1px solid var(--b2);border-radius:14px;padding:18px 20px;margin-bottom:12px}
+.price-big{font-weight:900;font-size:52px;line-height:1;transition:color .2s}
+.price-big.up{color:var(--up);text-shadow:0 0 20px rgba(0,230,118,.4)}
+.price-big.dn{color:var(--dn);text-shadow:0 0 20px rgba(255,23,68,.4)}
+.badge{font-family:'Share Tech Mono',monospace;font-size:12px;padding:3px 9px;border-radius:6px;display:inline-block}
+.badge.up{color:var(--up);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3)}
+.badge.dn{color:var(--dn);background:rgba(255,23,68,.1);border:1px solid rgba(255,23,68,.25)}
+.ts{font-size:10px;color:var(--mu);font-family:'Share Tech Mono',monospace}
+canvas{width:100%;height:100%;display:block}
+.stats{display:flex;gap:8px;margin-bottom:12px}
+.stat{background:var(--bg);border:1px solid var(--b1);border-radius:10px;padding:10px 12px;flex:1}
+.slbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;font-family:'Share Tech Mono',monospace}
+.sval{font-weight:700;font-size:18px}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:14px;padding:18px 20px;margin-bottom:12px}
+.section-lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;font-family:'Share Tech Mono',monospace}
+label{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;display:block;font-family:'Share Tech Mono',monospace}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+input,select{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:14px;outline:none}
+select option{background:var(--bg)}
+.hl-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.hl-btn{border-radius:12px;padding:14px 8px;font-weight:900;font-size:22px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.hl-btn .sub{font-size:9px;font-family:'Share Tech Mono',monospace;font-weight:400;opacity:.7}
+.hl-btn.higher{color:var(--up);border:2px solid rgba(0,230,118,.25);background:rgba(0,230,118,.06)}
+.hl-btn.lower{color:var(--dn);border:2px solid rgba(255,23,68,.2);background:rgba(255,23,68,.06)}
+.hl-btn.higher.sel{border-color:var(--up);background:rgba(0,230,118,.17);box-shadow:0 0 18px rgba(0,230,118,.3)}
+.hl-btn.lower.sel{border-color:var(--dn);background:rgba(255,23,68,.14);box-shadow:0 0 18px rgba(255,23,68,.25)}
+.analyze-btn{width:100%;padding:14px;background:linear-gradient(135deg,#f7931a,#e67e00);border:none;border-radius:12px;color:#000;font-weight:900;font-size:20px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.analyze-btn:disabled{background:#1e2840;color:var(--mu);cursor:not-allowed}
+.err-box{background:rgba(255,23,68,.08);border:1px solid rgba(255,23,68,.25);border-radius:8px;padding:11px 14px;color:var(--dn);font-size:13px;font-family:'Share Tech Mono',monospace;margin-bottom:10px}
+.result{animation:fadein .4s ease}
+.verdict{border-radius:12px;padding:18px 16px;text-align:center;margin-bottom:14px}
+.verdict.higher{background:rgba(0,230,118,.07);border:1px solid rgba(0,230,118,.3)}
+.verdict.lower{background:rgba(255,23,68,.07);border:1px solid rgba(255,23,68,.25)}
+.verdict-tag{font-size:10px;color:var(--mu);font-family:'Share Tech Mono',monospace;letter-spacing:2px;margin-bottom:4px}
+.verdict-main{font-weight:900;font-size:40px;letter-spacing:2px}
+.verdict.higher .verdict-main{color:var(--up)}
+.verdict.lower .verdict-main{color:var(--dn)}
+.verdict-sub{font-size:11px;color:var(--mu);font-family:'Share Tech Mono',monospace;margin-top:5px}
+.rec{text-align:center;margin-bottom:10px;font-weight:900;font-size:24px}
+.conf-wrap{margin:12px 0}
+.conf-hdr{display:flex;justify-content:space-between;font-size:10px;color:var(--mu);font-family:'Share Tech Mono',monospace;margin-bottom:5px}
+.conf-track{background:var(--b1);border-radius:4px;height:8px;overflow:hidden}
+.conf-fill{height:100%;border-radius:4px;transition:width 1s cubic-bezier(.16,1,.3,1)}
+.grid2r{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.rstat{background:var(--bg);border:1px solid var(--b1);border-radius:8px;padding:10px 12px}
+.rlbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;font-family:'Share Tech Mono',monospace}
+.rval{font-weight:700;font-size:15px}
+.summary{background:rgba(247,147,26,.05);border:1px solid rgba(247,147,26,.18);border-radius:8px;padding:14px;font-size:13px;line-height:1.7;margin-bottom:12px}
+.sig-hdr{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;font-family:'Share Tech Mono',monospace}
+.sig-item{display:flex;gap:8px;padding:7px 0;font-size:13px;line-height:1.5;color:#c9d9f7;border-bottom:1px solid var(--b1)}
+.sig-item:last-child{border-bottom:none}
+.entry-note{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--mu);text-align:center;padding-top:12px;border-top:1px solid var(--b1);margin-top:4px}
+.disclaimer{font-size:10px;color:var(--mu);text-align:center;margin-top:16px;line-height:1.7;font-family:'Share Tech Mono',monospace}
+.disclaimer strong{color:var(--ac)}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">BTC/BOT <span style="color:#5a6a8a;font-size:12px;font-weight:400">× KALSHI</span></div>
+  <div class="live">
+    <div class="dot" id="live-dot" style="background:#f7931a;box-shadow:0 0 7px #f7931a"></div>
+    <span id="live-txt" style="color:#f7931a">Connecting...</span>
+  </div>
+</div>
+<div class="wrap">
+  <div class="price-board">
+    <div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:10px">
+      <div class="price-big" id="price-disp">Loading...</div>
+      <div style="display:flex;flex-direction:column;gap:4px;padding-bottom:6px">
+        <div id="ch24-badge" style="display:none" class="badge"></div>
+        <div class="ts" id="ts">—</div>
+      </div>
+    </div>
+    <div style="height:54px"><canvas id="spark"></canvas></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="slbl">High</div><div class="sval" id="s-hi" style="color:var(--up)">—</div></div>
+    <div class="stat"><div class="slbl">Low</div><div class="sval" id="s-lo" style="color:var(--dn)">—</div></div>
+    <div class="stat"><div class="slbl">Ticks/Min</div><div class="sval" id="s-tpm" style="color:var(--ac)">0</div></div>
+    <div class="stat"><div class="slbl">Data Pts</div><div class="sval" id="s-pts" style="color:var(--ne)">0</div></div>
+  </div>
+  <div class="card">
+    <div class="section-lbl">⚡ Kalshi Bet Setup</div>
+    <div class="grid2">
+      <div><label>Bet Amount ($)</label><input type="number" id="i-amt" placeholder="e.g. 50"></div>
+      <div><label>Resolution</label>
+        <select id="i-res">
+          <option value="1">1 Minute</option>
+          <option value="5" selected>5 Minutes</option>
+          <option value="15">15 Minutes</option>
+          <option value="30">30 Minutes</option>
+          <option value="60">1 Hour</option>
+        </select>
+      </div>
+      <div><label>Kalshi YES % Odds</label><input type="number" id="i-odds" placeholder="e.g. 52"></div>
+      <div><label>Strike Price (opt)</label><input type="number" id="i-tgt" placeholder="e.g. 84000"></div>
+    </div>
+    <div class="hl-grid">
+      <button class="hl-btn higher" id="btn-higher" onclick="selectSide('higher')">📈 HIGHER<span class="sub">BTC GOES UP</span></button>
+      <button class="hl-btn lower" id="btn-lower" onclick="selectSide('lower')">📉 LOWER<span class="sub">BTC GOES DOWN</span></button>
+    </div>
+    <button class="analyze-btn" id="analyze-btn" onclick="analyze()">⚡ ANALYZE BET</button>
+  </div>
+  <div id="err-box" style="display:none" class="err-box"></div>
+  <div id="result-box" style="display:none" class="card result"></div>
+  <div class="disclaimer"><strong>⚠ NOT FINANCIAL ADVICE.</strong> AI predictions are probabilistic, not guaranteed.<br>Kalshi is a regulated prediction market. Only bet what you can afford to lose.</div>
+</div>
+<script>
+let price=null,prevPrice=null,ch24=null,history=[],sessionHi=null,sessionLo=null,flashTimer=null,side=null,tickCount=0;
+async function fetchPrice(){const s=[async()=>{const r=await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT',{cache:'no-store'});const d=await r.json();return{price:parseFloat(d.lastPrice),change:parseFloat(d.priceChangePercent)};},async()=>{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',{cache:'no-store'});const d=await r.json();return{price:d.bitcoin.usd,change:d.bitcoin.usd_24h_change};}];for(const f of s){try{return await Promise.race([f(),new Promise((_,r)=>setTimeout(()=>r('t'),4000))]);}catch{}}return null;}
+async function poll(){const d=await fetchPrice();if(d?.price){prevPrice=price;price=d.price;if(d.change!=null)ch24=d.change;history.push(price);if(history.length>120)history.shift();if(sessionHi===null||price>sessionHi)sessionHi=price;if(sessionLo===null||price<sessionLo)sessionLo=price;tickCount++;updateUI();drawSpark();setLive(true);}else{setLive(false);}setTimeout(poll,1000);}
+function setLive(on){const c=on?'#00e676':'#f7931a';document.getElementById('live-dot').style.background=c;document.getElementById('live-dot').style.boxShadow=`0 0 7px ${c}`;document.getElementById('live-txt').textContent=on?'LIVE':'Reconnecting...';document.getElementById('live-txt').style.color=c;}
+function fmt(n,d=2){return n!=null?Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';}
+function updateUI(){const el=document.getElementById('price-disp');el.textContent='$'+fmt(price);if(prevPrice!==null&&prevPrice!==price){const up=price>prevPrice;el.className='price-big '+(up?'up':'dn');clearTimeout(flashTimer);flashTimer=setTimeout(()=>el.className='price-big',400);}if(ch24!=null){const b=document.getElementById('ch24-badge');const up=ch24>=0;b.style.display='inline-block';b.textContent=(up?'▲ +':'▼ ')+Math.abs(ch24).toFixed(2)+'% 24h';b.className='badge '+(up?'up':'dn');}document.getElementById('ts').textContent='↻ '+new Date().toLocaleTimeString();document.getElementById('s-hi').textContent=sessionHi?'$'+fmt(sessionHi,0):'—';document.getElementById('s-lo').textContent=sessionLo?'$'+fmt(sessionLo,0):'—';document.getElementById('s-pts').textContent=history.length;}
+function drawSpark(){const c=document.getElementById('spark');const dpr=window.devicePixelRatio||1;c.width=c.offsetWidth*dpr;c.height=c.offsetHeight*dpr;const ctx=c.getContext('2d');ctx.scale(dpr,dpr);const W=c.offsetWidth,H=c.offsetHeight;if(history.length<2)return;const mn=Math.min(...history),mx=Math.max(...history),rng=mx-mn||1,pd=4;const pts=history.map((v,i)=>({x:(i/(history.length-1))*(W-pd*2)+pd,y:H-pd-((v-mn)/rng)*(H-pd*2)}));const up=history[history.length-1]>=history[0],col=up?'#00e676':'#ff1744';const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,up?'rgba(0,230,118,0.25)':'rgba(255,23,68,0.22)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.beginPath();ctx.moveTo(pts[0].x,H);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.lineTo(pts[pts.length-1].x,H);ctx.closePath();ctx.fillStyle=g;ctx.fill();ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.shadowColor=col;ctx.shadowBlur=5;ctx.stroke();const L=pts[pts.length-1];ctx.beginPath();ctx.arc(L.x,L.y,3,0,Math.PI*2);ctx.fillStyle=col;ctx.shadowBlur=10;ctx.fill();}
+setInterval(()=>{document.getElementById('s-tpm').textContent=tickCount;tickCount=0;},60000);
+function selectSide(s){side=s;document.getElementById('btn-higher').classList.toggle('sel',s==='higher');document.getElementById('btn-lower').classList.toggle('sel',s==='lower');}
+async function analyze(){const errBox=document.getElementById('err-box');const resBox=document.getElementById('result-box');errBox.style.display='none';resBox.style.display='none';if(!side){showErr('Select HIGHER or LOWER first.');return;}if(!price){showErr('Waiting for live price...');return;}const btn=document.getElementById('analyze-btn');btn.disabled=true;btn.textContent='⏳ ANALYZING...';const amt=document.getElementById('i-amt').value;const res=document.getElementById('i-res').value;const odds=document.getElementById('i-odds').value;const tgt=document.getElementById('i-tgt').value;const mom=history.length>5?((history[history.length-1]-history[0])/history[0]*100).toFixed(4):0;const vol=calcVol(history.slice(-30));const delta=prevPrice?(price-prevPrice).toFixed(2):0;const last10=history.slice(-10).map(v=>'$'+v.toFixed(0)).join(', ');const prompt=`You are an expert BTC trader and Kalshi prediction market analyst.\n\nLIVE DATA:\n- Price: $${price.toLocaleString()}\n- Last tick: $${delta}\n- ${res}min momentum: ${mom}%\n- Volatility: $${vol}\n- Session Hi/Lo: $${sessionHi?.toLocaleString()} / $${sessionLo?.toLocaleString()}\n- Last 10 ticks: [${last10}]\n\nKALSHI BET: BTC ${side.toUpperCase()} in ${res}min${odds?`, YES ${odds}%`:''}${tgt?`, strike $${tgt}`:''}${amt?`, $${amt}`:''}\n\nReturn ONLY raw JSON no markdown:\n{"recommendation":"TAKE THE BET","ai_side":"HIGHER","agrees_with_user":true,"confidence":62,"edge":"+2.1%","expected_value":"positive","momentum_signal":"BULLISH","volatility_note":"brief","key_signals":["s1","s2","s3"],"risks":["r1","r2"],"summary":"2-3 sentences.","target_note":"if strike set"}`;try{const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});const data=await r.json();const raw=(data.content||[]).map(b=>b.text||'').join('');const result=JSON.parse(raw.replace(/```json|```/g,'').trim());renderResult(result,res,price);}catch(e){showErr('Analysis failed: '+e.message);}btn.disabled=false;btn.textContent='⚡ ANALYZE BET';}
+function calcVol(p){if(p.length<2)return 0;const m=p.reduce((a,b)=>a+b,0)/p.length;return Math.sqrt(p.reduce((a,b)=>a+Math.pow(b-m,2),0)/p.length).toFixed(2);}
+function showErr(msg){const b=document.getElementById('err-box');b.textContent='⚠ '+msg;b.style.display='block';}
+function renderResult(d,res,ep){const dc=d.ai_side==='HIGHER'?'higher':'lower';const rc=d.recommendation==='TAKE THE BET'?'#00e676':d.recommendation==='SKIP THE BET'?'#ff1744':'#f7931a';const ec=d.expected_value==='positive'?'#00e676':d.expected_value==='negative'?'#ff1744':'#f7931a';const mc=d.momentum_signal==='BULLISH'?'#00e676':d.momentum_signal==='BEARISH'?'#ff1744':'#7c8db5';const cf=d.confidence||55;const bc=cf>=68?'#00e676':cf>=58?'#f7931a':'#ff1744';const box=document.getElementById('result-box');box.innerHTML=`<div class="verdict ${dc}"><div class="verdict-tag">AI SAYS — ${res}MIN DIRECTION</div><div class="verdict-main">${d.ai_side==='HIGHER'?'📈':'📉'} ${d.ai_side}</div><div class="verdict-sub">${d.agrees_with_user?'✅ AGREES':'⚠️ DISAGREES'} · $${fmt(ep)}</div></div><div class="rec" style="color:${rc}">${d.recommendation}</div><div class="conf-wrap"><div class="conf-hdr"><span>AI CONFIDENCE</span><span>${cf}%</span></div><div class="conf-track"><div class="conf-fill" id="cf" style="width:0%;background:${bc}"></div></div></div><div class="grid2r"><div class="rstat"><div class="rlbl">Edge</div><div class="rval" style="color:#f7931a">${d.edge||'—'}</div></div><div class="rstat"><div class="rlbl">Exp Value</div><div class="rval" style="color:${ec}">${(d.expected_value||'').toUpperCase()}</div></div><div class="rstat"><div class="rlbl">Momentum</div><div class="rval" style="color:${mc}">${d.momentum_signal}</div></div><div class="rstat"><div class="rlbl">Volatility</div><div class="rval" style="font-size:12px;color:#c9d9f7">${d.volatility_note||'—'}</div></div></div><div class="summary">${d.summary}</div><div class="sig-hdr">📊 KEY SIGNALS</div>${(d.key_signals||[]).map(s=>`<div class="sig-item"><span style="color:#f7931a;flex-shrink:0">▶</span>${s}</div>`).join('')}<div class="sig-hdr" style="margin-top:12px">⚠️ RISKS</div>${(d.risks||[]).map(r=>`<div class="sig-item"><span style="color:#ff1744;flex-shrink:0">!</span>${r}</div>`).join('')}${d.target_note?`<div class="sig-hdr" style="margin-top:12px">🎯 TARGET</div><div class="sig-item" style="border:none"><span style="color:#58a6ff;flex-shrink:0">→</span>${d.target_note}</div>`:''}<div class="entry-note">ENTRY: $${fmt(ep)} · ${res}MIN · ${new Date().toLocaleTimeString()}</div>`;box.style.display='block';setTimeout(()=>{const f=document.getElementById('cf');if(f)f.style.width=cf+'%';},120);}
+poll();
+window.addEventListener('resize',drawSpark);
+</script>
+</body>
+</html>
