@@ -95,7 +95,7 @@ select option{background:var(--bg)}
   <div class="stats">
     <div class="stat"><div class="slbl">High</div><div class="sval" id="s-hi" style="color:var(--up)">—</div></div>
     <div class="stat"><div class="slbl">Low</div><div class="sval" id="s-lo" style="color:var(--dn)">—</div></div>
-    <div class="stat"><div class="slbl">Ticks/Min</div><div class="sval" id="s-tpm" style="color:var(--ac)">0</div></div>
+    <div class="stat"><div class="slbl">Interval</div><div class="sval" style="color:var(--ac)">5s</div></div>
     <div class="stat"><div class="slbl">Data Pts</div><div class="sval" id="s-pts" style="color:var(--ne)">0</div></div>
   </div>
   <div class="card">
@@ -125,19 +125,143 @@ select option{background:var(--bg)}
   <div class="disclaimer"><strong>⚠ NOT FINANCIAL ADVICE.</strong> AI predictions are probabilistic, not guaranteed.<br>Kalshi is a regulated prediction market. Only bet what you can afford to lose.</div>
 </div>
 <script>
-let price=null,prevPrice=null,ch24=null,history=[],sessionHi=null,sessionLo=null,flashTimer=null,side=null,tickCount=0;
-async function fetchPrice(){const s=[async()=>{const r=await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT',{cache:'no-store'});const d=await r.json();return{price:parseFloat(d.lastPrice),change:parseFloat(d.priceChangePercent)};},async()=>{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',{cache:'no-store'});const d=await r.json();return{price:d.bitcoin.usd,change:d.bitcoin.usd_24h_change};}];for(const f of s){try{return await Promise.race([f(),new Promise((_,r)=>setTimeout(()=>r('t'),4000))]);}catch{}}return null;}
-async function poll(){const d=await fetchPrice();if(d?.price){prevPrice=price;price=d.price;if(d.change!=null)ch24=d.change;history.push(price);if(history.length>120)history.shift();if(sessionHi===null||price>sessionHi)sessionHi=price;if(sessionLo===null||price<sessionLo)sessionLo=price;tickCount++;updateUI();drawSpark();setLive(true);}else{setLive(false);}setTimeout(poll,1000);}
-function setLive(on){const c=on?'#00e676':'#f7931a';document.getElementById('live-dot').style.background=c;document.getElementById('live-dot').style.boxShadow=`0 0 7px ${c}`;document.getElementById('live-txt').textContent=on?'LIVE':'Reconnecting...';document.getElementById('live-txt').style.color=c;}
+let price=null,prevPrice=null,ch24=null,history=[],sessionHi=null,sessionLo=null,flashTimer=null,side=null;
+
+async function fetchPrice(){
+  try{
+    const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',{cache:'no-store'});
+    const d=await r.json();
+    return{price:d.bitcoin.usd,change:d.bitcoin.usd_24h_change};
+  }catch{return null;}
+}
+
+async function poll(){
+  const d=await fetchPrice();
+  if(d?.price){
+    prevPrice=price;price=d.price;
+    if(d.change!=null)ch24=d.change;
+    history.push(price);
+    if(history.length>120)history.shift();
+    if(sessionHi===null||price>sessionHi)sessionHi=price;
+    if(sessionLo===null||price<sessionLo)sessionLo=price;
+    updateUI();drawSpark();setLive(true);
+  }else{setLive(false);}
+  setTimeout(poll,5000);
+}
+
+function setLive(on){
+  const c=on?'#00e676':'#f7931a';
+  document.getElementById('live-dot').style.background=c;
+  document.getElementById('live-dot').style.boxShadow=`0 0 7px ${c}`;
+  document.getElementById('live-txt').textContent=on?'LIVE':'Reconnecting...';
+  document.getElementById('live-txt').style.color=c;
+}
+
 function fmt(n,d=2){return n!=null?Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';}
-function updateUI(){const el=document.getElementById('price-disp');el.textContent='$'+fmt(price);if(prevPrice!==null&&prevPrice!==price){const up=price>prevPrice;el.className='price-big '+(up?'up':'dn');clearTimeout(flashTimer);flashTimer=setTimeout(()=>el.className='price-big',400);}if(ch24!=null){const b=document.getElementById('ch24-badge');const up=ch24>=0;b.style.display='inline-block';b.textContent=(up?'▲ +':'▼ ')+Math.abs(ch24).toFixed(2)+'% 24h';b.className='badge '+(up?'up':'dn');}document.getElementById('ts').textContent='↻ '+new Date().toLocaleTimeString();document.getElementById('s-hi').textContent=sessionHi?'$'+fmt(sessionHi,0):'—';document.getElementById('s-lo').textContent=sessionLo?'$'+fmt(sessionLo,0):'—';document.getElementById('s-pts').textContent=history.length;}
-function drawSpark(){const c=document.getElementById('spark');const dpr=window.devicePixelRatio||1;c.width=c.offsetWidth*dpr;c.height=c.offsetHeight*dpr;const ctx=c.getContext('2d');ctx.scale(dpr,dpr);const W=c.offsetWidth,H=c.offsetHeight;if(history.length<2)return;const mn=Math.min(...history),mx=Math.max(...history),rng=mx-mn||1,pd=4;const pts=history.map((v,i)=>({x:(i/(history.length-1))*(W-pd*2)+pd,y:H-pd-((v-mn)/rng)*(H-pd*2)}));const up=history[history.length-1]>=history[0],col=up?'#00e676':'#ff1744';const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,up?'rgba(0,230,118,0.25)':'rgba(255,23,68,0.22)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.beginPath();ctx.moveTo(pts[0].x,H);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.lineTo(pts[pts.length-1].x,H);ctx.closePath();ctx.fillStyle=g;ctx.fill();ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.shadowColor=col;ctx.shadowBlur=5;ctx.stroke();const L=pts[pts.length-1];ctx.beginPath();ctx.arc(L.x,L.y,3,0,Math.PI*2);ctx.fillStyle=col;ctx.shadowBlur=10;ctx.fill();}
-setInterval(()=>{document.getElementById('s-tpm').textContent=tickCount;tickCount=0;},60000);
-function selectSide(s){side=s;document.getElementById('btn-higher').classList.toggle('sel',s==='higher');document.getElementById('btn-lower').classList.toggle('sel',s==='lower');}
-async function analyze(){const errBox=document.getElementById('err-box');const resBox=document.getElementById('result-box');errBox.style.display='none';resBox.style.display='none';if(!side){showErr('Select HIGHER or LOWER first.');return;}if(!price){showErr('Waiting for live price...');return;}const btn=document.getElementById('analyze-btn');btn.disabled=true;btn.textContent='⏳ ANALYZING...';const amt=document.getElementById('i-amt').value;const res=document.getElementById('i-res').value;const odds=document.getElementById('i-odds').value;const tgt=document.getElementById('i-tgt').value;const mom=history.length>5?((history[history.length-1]-history[0])/history[0]*100).toFixed(4):0;const vol=calcVol(history.slice(-30));const delta=prevPrice?(price-prevPrice).toFixed(2):0;const last10=history.slice(-10).map(v=>'$'+v.toFixed(0)).join(', ');const prompt=`You are an expert BTC trader and Kalshi prediction market analyst.\n\nLIVE DATA:\n- Price: $${price.toLocaleString()}\n- Last tick: $${delta}\n- ${res}min momentum: ${mom}%\n- Volatility: $${vol}\n- Session Hi/Lo: $${sessionHi?.toLocaleString()} / $${sessionLo?.toLocaleString()}\n- Last 10 ticks: [${last10}]\n\nKALSHI BET: BTC ${side.toUpperCase()} in ${res}min${odds?`, YES ${odds}%`:''}${tgt?`, strike $${tgt}`:''}${amt?`, $${amt}`:''}\n\nReturn ONLY raw JSON no markdown:\n{"recommendation":"TAKE THE BET","ai_side":"HIGHER","agrees_with_user":true,"confidence":62,"edge":"+2.1%","expected_value":"positive","momentum_signal":"BULLISH","volatility_note":"brief","key_signals":["s1","s2","s3"],"risks":["r1","r2"],"summary":"2-3 sentences.","target_note":"if strike set"}`;try{const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});const data=await r.json();const raw=(data.content||[]).map(b=>b.text||'').join('');const result=JSON.parse(raw.replace(/```json|```/g,'').trim());renderResult(result,res,price);}catch(e){showErr('Analysis failed: '+e.message);}btn.disabled=false;btn.textContent='⚡ ANALYZE BET';}
-function calcVol(p){if(p.length<2)return 0;const m=p.reduce((a,b)=>a+b,0)/p.length;return Math.sqrt(p.reduce((a,b)=>a+Math.pow(b-m,2),0)/p.length).toFixed(2);}
-function showErr(msg){const b=document.getElementById('err-box');b.textContent='⚠ '+msg;b.style.display='block';}
-function renderResult(d,res,ep){const dc=d.ai_side==='HIGHER'?'higher':'lower';const rc=d.recommendation==='TAKE THE BET'?'#00e676':d.recommendation==='SKIP THE BET'?'#ff1744':'#f7931a';const ec=d.expected_value==='positive'?'#00e676':d.expected_value==='negative'?'#ff1744':'#f7931a';const mc=d.momentum_signal==='BULLISH'?'#00e676':d.momentum_signal==='BEARISH'?'#ff1744':'#7c8db5';const cf=d.confidence||55;const bc=cf>=68?'#00e676':cf>=58?'#f7931a':'#ff1744';const box=document.getElementById('result-box');box.innerHTML=`<div class="verdict ${dc}"><div class="verdict-tag">AI SAYS — ${res}MIN DIRECTION</div><div class="verdict-main">${d.ai_side==='HIGHER'?'📈':'📉'} ${d.ai_side}</div><div class="verdict-sub">${d.agrees_with_user?'✅ AGREES':'⚠️ DISAGREES'} · $${fmt(ep)}</div></div><div class="rec" style="color:${rc}">${d.recommendation}</div><div class="conf-wrap"><div class="conf-hdr"><span>AI CONFIDENCE</span><span>${cf}%</span></div><div class="conf-track"><div class="conf-fill" id="cf" style="width:0%;background:${bc}"></div></div></div><div class="grid2r"><div class="rstat"><div class="rlbl">Edge</div><div class="rval" style="color:#f7931a">${d.edge||'—'}</div></div><div class="rstat"><div class="rlbl">Exp Value</div><div class="rval" style="color:${ec}">${(d.expected_value||'').toUpperCase()}</div></div><div class="rstat"><div class="rlbl">Momentum</div><div class="rval" style="color:${mc}">${d.momentum_signal}</div></div><div class="rstat"><div class="rlbl">Volatility</div><div class="rval" style="font-size:12px;color:#c9d9f7">${d.volatility_note||'—'}</div></div></div><div class="summary">${d.summary}</div><div class="sig-hdr">📊 KEY SIGNALS</div>${(d.key_signals||[]).map(s=>`<div class="sig-item"><span style="color:#f7931a;flex-shrink:0">▶</span>${s}</div>`).join('')}<div class="sig-hdr" style="margin-top:12px">⚠️ RISKS</div>${(d.risks||[]).map(r=>`<div class="sig-item"><span style="color:#ff1744;flex-shrink:0">!</span>${r}</div>`).join('')}${d.target_note?`<div class="sig-hdr" style="margin-top:12px">🎯 TARGET</div><div class="sig-item" style="border:none"><span style="color:#58a6ff;flex-shrink:0">→</span>${d.target_note}</div>`:''}<div class="entry-note">ENTRY: $${fmt(ep)} · ${res}MIN · ${new Date().toLocaleTimeString()}</div>`;box.style.display='block';setTimeout(()=>{const f=document.getElementById('cf');if(f)f.style.width=cf+'%';},120);}
+
+function updateUI(){
+  const el=document.getElementById('price-disp');
+  el.textContent='$'+fmt(price);
+  if(prevPrice!==null&&prevPrice!==price){
+    const up=price>prevPrice;
+    el.className='price-big '+(up?'up':'dn');
+    clearTimeout(flashTimer);
+    flashTimer=setTimeout(()=>el.className='price-big',400);
+  }
+  if(ch24!=null){
+    const b=document.getElementById('ch24-badge');
+    const up=ch24>=0;
+    b.style.display='inline-block';
+    b.textContent=(up?'▲ +':'▼ ')+Math.abs(ch24).toFixed(2)+'% 24h';
+    b.className='badge '+(up?'up':'dn');
+  }
+  document.getElementById('ts').textContent='↻ '+new Date().toLocaleTimeString();
+  document.getElementById('s-hi').textContent=sessionHi?'$'+fmt(sessionHi,0):'—';
+  document.getElementById('s-lo').textContent=sessionLo?'$'+fmt(sessionLo,0):'—';
+  document.getElementById('s-pts').textContent=history.length;
+}
+
+function drawSpark(){
+  const c=document.getElementById('spark');
+  const dpr=window.devicePixelRatio||1;
+  c.width=c.offsetWidth*dpr;c.height=c.offsetHeight*dpr;
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+  const W=c.offsetWidth,H=c.offsetHeight;
+  if(history.length<2)return;
+  const mn=Math.min(...history),mx=Math.max(...history),rng=mx-mn||1,pd=4;
+  const pts=history.map((v,i)=>({x:(i/(history.length-1))*(W-pd*2)+pd,y:H-pd-((v-mn)/rng)*(H-pd*2)}));
+  const up=history[history.length-1]>=history[0],col=up?'#00e676':'#ff1744';
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,up?'rgba(0,230,118,0.25)':'rgba(255,23,68,0.22)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();ctx.moveTo(pts[0].x,H);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.lineTo(pts[pts.length-1].x,H);ctx.closePath();
+  ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.shadowColor=col;ctx.shadowBlur=5;ctx.stroke();
+  const L=pts[pts.length-1];
+  ctx.beginPath();ctx.arc(L.x,L.y,3,0,Math.PI*2);
+  ctx.fillStyle=col;ctx.shadowBlur=10;ctx.fill();
+}
+
+function selectSide(s){
+  side=s;
+  document.getElementById('btn-higher').classList.toggle('sel',s==='higher');
+  document.getElementById('btn-lower').classList.toggle('sel',s==='lower');
+}
+
+async function analyze(){
+  const errBox=document.getElementById('err-box');
+  const resBox=document.getElementById('result-box');
+  errBox.style.display='none';resBox.style.display='none';
+  if(!side){showErr('Select HIGHER or LOWER first.');return;}
+  if(!price){showErr('Waiting for live price...');return;}
+  const btn=document.getElementById('analyze-btn');
+  btn.disabled=true;btn.textContent='⏳ ANALYZING...';
+  const amt=document.getElementById('i-amt').value;
+  const res=document.getElementById('i-res').value;
+  const odds=document.getElementById('i-odds').value;
+  const tgt=document.getElementById('i-tgt').value;
+  const mom=history.length>5?((history[history.length-1]-history[0])/history[0]*100).toFixed(4):0;
+  const vol=calcVol(history.slice(-30));
+  const delta=prevPrice?(price-prevPrice).toFixed(2):0;
+  const last10=history.slice(-10).map(v=>'$'+v.toFixed(0)).join(', ');
+  const prompt=`You are an expert BTC trader and Kalshi prediction market analyst.\n\nLIVE DATA:\n- Price: $${price.toLocaleString()}\n- Last tick: $${delta}\n- ${res}min momentum: ${mom}%\n- Volatility: $${vol}\n- Session Hi/Lo: $${sessionHi?.toLocaleString()} / $${sessionLo?.toLocaleString()}\n- Last 10 ticks: [${last10}]\n\nKALSHI BET: BTC ${side.toUpperCase()} in ${res}min${odds?`, YES ${odds}%`:''}${tgt?`, strike $${tgt}`:''}${amt?`, $${amt}`:''}\n\nReturn ONLY raw JSON no markdown:\n{"recommendation":"TAKE THE BET","ai_side":"HIGHER","agrees_with_user":true,"confidence":62,"edge":"+2.1%","expected_value":"positive","momentum_signal":"BULLISH","volatility_note":"brief","key_signals":["s1","s2","s3"],"risks":["r1","r2"],"summary":"2-3 sentences.","target_note":"if strike set"}`;
+  try{
+    const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const data=await r.json();
+    const raw=(data.content||[]).map(b=>b.text||'').join('');
+    const result=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    renderResult(result,res,price);
+  }catch(e){showErr('Analysis failed: '+e.message);}
+  btn.disabled=false;btn.textContent='⚡ ANALYZE BET';
+}
+
+function calcVol(p){
+  if(p.length<2)return 0;
+  const m=p.reduce((a,b)=>a+b,0)/p.length;
+  return Math.sqrt(p.reduce((a,b)=>a+Math.pow(b-m,2),0)/p.length).toFixed(2);
+}
+
+function showErr(msg){
+  const b=document.getElementById('err-box');
+  b.textContent='⚠ '+msg;b.style.display='block';
+}
+
+function renderResult(d,res,ep){
+  const dc=d.ai_side==='HIGHER'?'higher':'lower';
+  const rc=d.recommendation==='TAKE THE BET'?'#00e676':d.recommendation==='SKIP THE BET'?'#ff1744':'#f7931a';
+  const ec=d.expected_value==='positive'?'#00e676':d.expected_value==='negative'?'#ff1744':'#f7931a';
+  const mc=d.momentum_signal==='BULLISH'?'#00e676':d.momentum_signal==='BEARISH'?'#ff1744':'#7c8db5';
+  const cf=d.confidence||55;
+  const bc=cf>=68?'#00e676':cf>=58?'#f7931a':'#ff1744';
+  const box=document.getElementById('result-box');
+  box.innerHTML=`<div class="verdict ${dc}"><div class="verdict-tag">AI SAYS — ${res}MIN DIRECTION</div><div class="verdict-main">${d.ai_side==='HIGHER'?'📈':'📉'} ${d.ai_side}</div><div class="verdict-sub">${d.agrees_with_user?'✅ AGREES':'⚠️ DISAGREES'} · $${fmt(ep)}</div></div><div class="rec" style="color:${rc}">${d.recommendation}</div><div class="conf-wrap"><div class="conf-hdr"><span>AI CONFIDENCE</span><span>${cf}%</span></div><div class="conf-track"><div class="conf-fill" id="cf" style="width:0%;background:${bc}"></div></div></div><div class="grid2r"><div class="rstat"><div class="rlbl">Edge</div><div class="rval" style="color:#f7931a">${d.edge||'—'}</div></div><div class="rstat"><div class="rlbl">Exp Value</div><div class="rval" style="color:${ec}">${(d.expected_value||'').toUpperCase()}</div></div><div class="rstat"><div class="rlbl">Momentum</div><div class="rval" style="color:${mc}">${d.momentum_signal}</div></div><div class="rstat"><div class="rlbl">Volatility</div><div class="rval" style="font-size:12px;color:#c9d9f7">${d.volatility_note||'—'}</div></div></div><div class="summary">${d.summary}</div><div class="sig-hdr">📊 KEY SIGNALS</div>${(d.key_signals||[]).map(s=>`<div class="sig-item"><span style="color:#f7931a;flex-shrink:0">▶</span>${s}</div>`).join('')}<div class="sig-hdr" style="margin-top:12px">⚠️ RISKS</div>${(d.risks||[]).map(r=>`<div class="sig-item"><span style="color:#ff1744;flex-shrink:0">!</span>${r}</div>`).join('')}${d.target_note?`<div class="sig-hdr" style="margin-top:12px">🎯 TARGET</div><div class="sig-item" style="border:none"><span style="color:#58a6ff;flex-shrink:0">→</span>${d.target_note}</div>`:''}<div class="entry-note">ENTRY: $${fmt(ep)} · ${res}MIN · ${new Date().toLocaleTimeString()}</div>`;
+  box.style.display='block';
+  setTimeout(()=>{const f=document.getElementById('cf');if(f)f.style.width=cf+'%';},120);
+}
+
 poll();
 window.addEventListener('resize',drawSpark);
 </script>
